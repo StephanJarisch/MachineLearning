@@ -18,7 +18,7 @@ A very simple Convolutional Neural Network. You only need to provide:
 1. the trained model
 2. an image of randomly chosen images and their predictions
 
-<img src="images/predictions.png" alt="" width="200" />
+<img src="images/predictions.png" alt="" width="400" />
 
 ### not used:
 
