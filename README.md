@@ -10,4 +10,4 @@ You get:
 - the model
 - an image of random images and their predictions
 
-<img src="images/predictions.png" alt="" width="400" />
+<img src="CNN/images/predictions.png" alt="" width="400" />
