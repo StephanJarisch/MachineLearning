@@ -14,6 +14,8 @@ from tensorflow.keras import layers
 from tensorflow.python.client import device_lib
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Activation, Conv2D, MaxPool2D, Flatten, MaxPooling2D
+from tensorflow.keras.layers import GlobalAveragePooling2D, BatchNormalization
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import TensorBoard
 
@@ -87,27 +89,30 @@ def evaluate_model(model, X_test, y_test, print_eval=True):
 
 def save_X_y_class_names(X, y, class_names, name_postfix, colored_images=True):
 
-    if get_color_img:
-        np.save('X_color_'+ name_postfix +'.npy', X)
-        np.save('y_color_'+ name_postfix +'.npy', y)
-    else:
-        np.save('X_gray_'+ name_postfix +'.npy', X)
-        np.save('y_gray_'+ name_postfix +'.npy', y)
+    if not os.path.exists("data"):
+        os.mkdir("data")
 
-    np.save('class_names_'+ name_postfix +'.npy', class_names)
+    if get_color_img:
+        np.save('data/X_color_'+ name_postfix +'.npy', X)
+        np.save('data/y_color_'+ name_postfix +'.npy', y)
+    else:
+        np.save('data/X_gray_'+ name_postfix +'.npy', X)
+        np.save('data/y_gray_'+ name_postfix +'.npy', y)
+
+    np.save('data/class_names_'+ name_postfix +'.npy', class_names)
 
 def load_X_y_class_names(name_postfix, colored_images=True):
     if get_color_img:
-        X = np.load('X_color_'+ name_postfix +'.npy')
-        y = np.load('y_color_'+ name_postfix +'.npy')
+        X = np.load('data/X_color_'+ name_postfix +'.npy')
+        y = np.load('data/y_color_'+ name_postfix +'.npy')
     else:
-        X = np.load('X_gray_'+ name_postfix +'.npy')
-        y = np.load('y_gray_'+ name_postfix +'.npy')
+        X = np.load('data/X_gray_'+ name_postfix +'.npy')
+        y = np.load('data/y_gray_'+ name_postfix +'.npy')
 
         X = np.expand_dims(X, axis=3)
         y = np.expand_dims(y, axis=1)
 
-    class_names = np.load('class_names_'+ name_postfix +'.npy')
+    class_names = np.load('data/class_names_'+ name_postfix +'.npy')
 
     return X, y, class_names
 
@@ -116,7 +121,7 @@ def model_show_predicted_images(model, X, y, class_names, colored_images=True, m
 
     if colored_images:
         images = np.array(X*255, dtype='uint8')
-        fig = plt.figure(figsize=(10, 12), dpi=200)
+        fig = plt.figure(figsize=(12, 12), dpi=200)
 
         for i in range(0,20):
             img_fig = fig.add_subplot(5,4,i+1)
@@ -126,10 +131,14 @@ def model_show_predicted_images(model, X, y, class_names, colored_images=True, m
             predicted_img = np.argmax(model.predict(img_to_predict), axis=1)
             plt.title(str(class_names[predicted_img[0]]))
             img_fig.imshow(cv2.cvtColor(images[i], cv2.COLOR_BGR2RGB))
+
+        plt.savefig('predictions.png')
+        plt.show()
+
 
     else:
         images = np.array(X*255, dtype='uint8')
-        fig = plt.figure(figsize=(10, 12), dpi=200)
+        fig = plt.figure(figsize=(12, 12), dpi=200)
 
         for i in range(0,20):
             img_fig = fig.add_subplot(5,4,i+1)
@@ -139,3 +148,74 @@ def model_show_predicted_images(model, X, y, class_names, colored_images=True, m
             predicted_img = np.argmax(model.predict(img_to_predict), axis=1)
             plt.title(str(class_names[predicted_img[0]]))
             img_fig.imshow(cv2.cvtColor(images[i], cv2.COLOR_BGR2RGB))
+
+        plt.savefig('predictions.png')
+        plt.show()
+
+
+
+
+
+IMG_DIR = "C:/Users/steph/Desktop/train/"
+MODEL_NAME = 'cats_and_dogs'
+
+get_color_img = True
+create_data = False
+save_data = True
+IMG_SIZE = 128
+EPOCHS = 10
+LEARNING_RATE = 0.001
+
+if create_data:
+    X, y, class_names = get_X_y(IMG_DIR, get_color_img, IMG_SIZE)
+    if save_data:
+        save_X_y_class_names(X, y, class_names, MODEL_NAME)
+else:
+    X, y, class_names = load_X_y_class_names(MODEL_NAME)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 0)
+
+
+
+#ADD your model
+model = Sequential()
+model.add(Conv2D(32, kernel_size=(3,3), activation='relu', padding='same', input_shape = X_train.shape[1:]))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(BatchNormalization())
+
+model.add(Conv2D(64, kernel_size=(3,3), activation='relu', padding='same'))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(BatchNormalization())
+
+model.add(Conv2D(128, kernel_size=(3,3), activation='relu', padding='same'))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(BatchNormalization())
+
+model.add(Conv2D(256, kernel_size=(3,3), activation='relu', padding='same'))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(BatchNormalization())
+
+model.add(Conv2D(len(class_names), kernel_size=(3,3), activation='relu'))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(BatchNormalization())
+
+model.add(GlobalAveragePooling2D())
+model.add(Activation("softmax"))
+
+opt = Adam(learning_rate=LEARNING_RATE)
+model.compile(optimizer=opt, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+time1 = time.time()
+model.fit(X_train,
+          y_train,
+          validation_data=(X_test,y_test),
+          epochs=EPOCHS,
+          batch_size = 4)
+print("Time elapsed: ", round(time.time()-time1, 2), "s")
+
+model.save(MODEL_NAME + "_" + str(int(time.time())))
+
+evaluation = evaluate_model(model, X_test, y_test, print_eval=True)
+print(evaluation)
+
+model_show_predicted_images(model, X_test, y_test, class_names)
